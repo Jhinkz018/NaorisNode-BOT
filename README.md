@@ -15,6 +15,8 @@ Naoris Node Protocol BOT
   - Auto Add to Whitelist
   - Auto Send Ping Every 25 Seconds
   - Multi Accounts With Threads
+New Added: 
+ -Update proxy assignment and all usages to use both address and device_hash as the key
 
 - Note: Points Not Increase? pending bruh. please be patient.
 
