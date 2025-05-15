@@ -42,7 +42,7 @@ class NaorisProtocol:
         {Fore.GREEN + Style.BRIGHT}Auto Ping {Fore.BLUE + Style.BRIGHT}Naoris Protocol Node - BOT
             """
             f"""
-        {Fore.GREEN + Style.BRIGHT}Rey? {Fore.YELLOW + Style.BRIGHT}<INI WATERMARK>
+        {Fore.GREEN + Style.BRIGHT}0xM3th {Fore.YELLOW + Style.BRIGHT}Rotating proxy updated
             """
         )
 
@@ -102,20 +102,22 @@ class NaorisProtocol:
             return proxies
         return f"http://{proxies}"
 
-    def get_next_proxy_for_account(self, account):
-        if account not in self.account_proxies:
+    def get_next_proxy_for_account(self, address, device_hash):
+        key = (address, device_hash)
+        if key not in self.account_proxies:
             if not self.proxies:
                 return None
             proxy = self.check_proxy_schemes(self.proxies[self.proxy_index])
-            self.account_proxies[account] = proxy
+            self.account_proxies[key] = proxy
             self.proxy_index = (self.proxy_index + 1) % len(self.proxies)
-        return self.account_proxies[account]
+        return self.account_proxies[key]
 
-    def rotate_proxy_for_account(self, account):
+    def rotate_proxy_for_account(self, address, device_hash):
         if not self.proxies:
             return None
+        key = (address, device_hash)
         proxy = self.check_proxy_schemes(self.proxies[self.proxy_index])
-        self.account_proxies[account] = proxy
+        self.account_proxies[key] = proxy
         self.proxy_index = (self.proxy_index + 1) % len(self.proxies)
         return proxy
     
@@ -304,15 +306,15 @@ class NaorisProtocol:
                     continue
                 return self.print_message(self.mask_account(address), proxy, Fore.RED, f"PING Failed: {Fore.YELLOW+Style.BRIGHT}{str(e)}")
 
-    async def process_generate_token(self, address: str, use_proxy: bool):
-        proxy = self.get_next_proxy_for_account(address) if use_proxy else None
+    async def process_generate_token(self, address: str, device_hash: int, use_proxy: bool):
+        proxy = self.get_next_proxy_for_account(address, device_hash) if use_proxy else None
 
         token = None
         while token is None:
             token = await self.generate_token(address, proxy)
             if not token:
                 await asyncio.sleep(5)
-                proxy = self.rotate_proxy_for_account(address) if use_proxy else None
+                proxy = self.rotate_proxy_for_account(address, device_hash) if use_proxy else None
                 continue
             
             self.access_tokens[address] = token["token"]
@@ -322,17 +324,17 @@ class NaorisProtocol:
 
             return self.access_tokens[address], self.refresh_tokens[address]
 
-    async def process_refresh_token(self, address: str, use_proxy: bool):
+    async def process_refresh_token(self, address: str, device_hash: int, use_proxy: bool):
         while True:
             await asyncio.sleep(30 * 60)
-            proxy = self.get_next_proxy_for_account(address) if use_proxy else None
+            proxy = self.get_next_proxy_for_account(address, device_hash) if use_proxy else None
 
             token = None
             while token is None:
                 token = await self.refresh_token(address, use_proxy, proxy)
                 if not token:
                     await asyncio.sleep(5)
-                    proxy = self.rotate_proxy_for_account(address) if use_proxy else None
+                    proxy = self.rotate_proxy_for_account(address, device_hash) if use_proxy else None
                     continue
                 
                 self.access_tokens[address] = token["token"]
@@ -340,8 +342,8 @@ class NaorisProtocol:
 
                 self.print_message(address, proxy, Fore.GREEN, "Refreshing Token Success")
 
-    async def process_add_whitelist(self, address: str, use_proxy: bool):
-        proxy = self.get_next_proxy_for_account(address) if use_proxy else None
+    async def process_add_whitelist(self, address: str, device_hash: int, use_proxy: bool):
+        proxy = self.get_next_proxy_for_account(address, device_hash) if use_proxy else None
 
         whitelist = await self.add_whitelist(address, proxy)
         if whitelist and whitelist.get("message") == "url saved successfully":
@@ -349,11 +351,11 @@ class NaorisProtocol:
 
         return True
 
-    async def process_get_wallet_details(self, address: str, use_proxy: bool):
-        await self.process_add_whitelist(address, use_proxy)
+    async def process_get_wallet_details(self, address: str, device_hash: int, use_proxy: bool):
+        await self.process_add_whitelist(address, device_hash, use_proxy)
 
         while True:
-            proxy = self.get_next_proxy_for_account(address) if use_proxy else None
+            proxy = self.get_next_proxy_for_account(address, device_hash) if use_proxy else None
 
             total_earning = "N/A"
 
@@ -365,9 +367,9 @@ class NaorisProtocol:
 
             await asyncio.sleep(15 * 60)
     
-    async def process_send_ping(self, address: str, use_proxy: bool):
+    async def process_send_ping(self, address: str, device_hash: int, use_proxy: bool):
         while True:
-            proxy = self.get_next_proxy_for_account(address) if use_proxy else None
+            proxy = self.get_next_proxy_for_account(address, device_hash) if use_proxy else None
 
             ping = await self.perform_ping(address, proxy)
             if ping and ping.strip() == "Ping Success!!":
@@ -377,7 +379,7 @@ class NaorisProtocol:
         
     async def process_initiate_msg_product(self, address: str, device_hash: int, use_proxy: bool):
         while True:
-            proxy = self.get_next_proxy_for_account(address) if use_proxy else None
+            proxy = self.get_next_proxy_for_account(address, device_hash) if use_proxy else None
 
             initiate = await self.initiate_msg_product(address, device_hash, proxy)
             if initiate and initiate.get("message") == "Message production initiated":
@@ -387,7 +389,7 @@ class NaorisProtocol:
     
     async def process_activate_toggle(self, address, device_hash, use_proxy):
         while True:
-            proxy = self.get_next_proxy_for_account(address) if use_proxy else None
+            proxy = self.get_next_proxy_for_account(address, device_hash) if use_proxy else None
 
             deactivate = await self.toggle_activation(address, device_hash, "OFF", proxy)
             if deactivate and deactivate.strip() in ["Session ended and daily usage updated", "No action needed"]:
@@ -397,7 +399,7 @@ class NaorisProtocol:
 
                     tasks = [
                         asyncio.create_task(self.process_initiate_msg_product(address, device_hash, use_proxy)),
-                        asyncio.create_task(self.process_send_ping(address, use_proxy))
+                        asyncio.create_task(self.process_send_ping(address, device_hash, use_proxy))
                     ]
                     await asyncio.gather(*tasks)
                 else:
@@ -406,11 +408,11 @@ class NaorisProtocol:
                 continue
         
     async def process_accounts(self, address: str, device_hash: int, use_proxy: bool):
-        self.access_tokens[address], self.refresh_tokens[address]= await self.process_generate_token(address, use_proxy)
+        self.access_tokens[address], self.refresh_tokens[address]= await self.process_generate_token(address, device_hash, use_proxy)
         if self.access_tokens[address] and self.refresh_tokens[address]:
             tasks = [
-                asyncio.create_task(self.process_refresh_token(address, use_proxy)),
-                asyncio.create_task(self.process_get_wallet_details(address, use_proxy)),
+                asyncio.create_task(self.process_refresh_token(address, device_hash, use_proxy)),
+                asyncio.create_task(self.process_get_wallet_details(address, device_hash, use_proxy)),
                 asyncio.create_task(self.process_activate_toggle(address, device_hash, use_proxy))
             ]
             await asyncio.gather(*tasks)
